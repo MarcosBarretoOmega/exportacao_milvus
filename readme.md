@@ -1,0 +1,6 @@
+- Python 3.13
+- > python -m ven venv
+- > .\venv\Scripts\activate
+- > pip install -r requirements.txt
+- > cd app
+- > python main.py
