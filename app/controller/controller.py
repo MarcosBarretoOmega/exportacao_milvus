@@ -8,6 +8,8 @@ from json import dumps as from_json
 
 from web.web import Web
 
+from controller.sheet import Sheet
+
 from env_keys import get_env
 from env_keys import USER_PASS
 from env_keys import USER_EMAIL
@@ -43,42 +45,6 @@ class Controller:
 
         return True
 
-    def save_file(self, path_file: str, content: str | bytes | None = None) -> bool:
-        try:
-            with open(path_file, "wb") as file:
-                if isinstance(content, bytes):
-                    file.write(content)
-
-                elif isinstance(content, str):
-                    file.write(content.encode())
-
-                file.close()
-
-        except Exception as e:
-            print(f"-- erro: {str(e)}")
-            return False
-
-        return True
-
-    def load_file(self, path_file: str) -> str | None:
-        if not os.path.isfile(path_file):
-            return None
-
-        file_content: str = ""
-        try:
-            with open(path_file, "rb") as file:
-                file_content = file.read().decode()
-                file.close()
-
-        except Exception as e:
-            print(f"-- erro: {str(e)}")
-            return None
-
-        if not file_content:
-            return None
-
-        return file_content
-
     def save_client_at_file(self, override: bool = False) -> bool:
         if not override and os.path.isfile(FILE_CLIENT_MAP):
             return True
@@ -99,60 +65,6 @@ class Controller:
             return False
 
         return self.save_file(path_file=FILE_PASSWORD_VAULT_MAP, content=dumps(password_vault))
-
-    def get_password_vaults(self) -> list[dict]:
-        file_content: str | None = self.load_file(FILE_PASSWORD_VAULT_MAP)
-
-        if not file_content:
-            return []
-
-        return loads(file_content)
-
-    def get_clients(self) -> list[dict]:
-        file_content: str | None = self.load_file(FILE_CLIENT_MAP)
-
-        if not file_content:
-            return []
-
-        return loads(file_content)
-
-    def get_save_password_map(self) -> dict:
-        file_content: str | None = self.load_file(FILE_PASSWORD_MAP)
-        if not file_content:
-            return {}
-
-        return loads("{%s}" % file_content[:len(file_content) - 3].replace("\n", ""))
-
-    def get_colunm_value(self, data: dict, colunm_name: str) -> Any:
-        for item in data:
-            if not data[item].get(colunm_name):
-                yield ""
-
-            yield data[item][colunm_name]
-
-    def build_sheet(self) -> bool:
-        senhas: dict = self.get_save_password_map()
-        print([_ for _ in self.get_colunm_value(senhas, "description")])
-        import pdb;pdb.set_trace()
-
-    def list_to_hash_by_field(self, data: list[dict], field: str) -> dict:
-        if not isinstance(data, list) or not isinstance(field, str):
-            return {}
-
-        result: dict = {}
-        for item in data:
-            if not isinstance(item, dict):
-                continue
-
-            if not item.get(field):
-                continue
-
-            if result.get(item[field]):
-                continue
-
-            result[item[field]] = item
-
-        return result
 
     def save_password_map_at_file(self, override: bool = False) -> bool:
         clients_cache: dict = self.list_to_hash_by_field(self.get_clients(), "id")
@@ -211,6 +123,110 @@ class Controller:
             return False
 
         return True
+
+    def get_password_vaults(self) -> list[dict]:
+        file_content: str | None = self.load_file(FILE_PASSWORD_VAULT_MAP)
+
+        if not file_content:
+            return []
+
+        return loads(file_content)
+
+    def get_clients(self) -> list[dict]:
+        file_content: str | None = self.load_file(FILE_CLIENT_MAP)
+
+        if not file_content:
+            return []
+
+        return loads(file_content)
+
+    def get_save_password_map(self) -> dict:
+        file_content: str | None = self.load_file(FILE_PASSWORD_MAP)
+        if not file_content:
+            return {}
+
+        return loads("{%s}" % file_content[:len(file_content) - 3].replace("\n", ""))
+
+    def get_colunm_value(self, data: dict, colunm_name: str) -> Any:
+        for item in data:
+            if not data[item].get(colunm_name):
+                yield "-"
+                continue
+
+            yield data[item][colunm_name]
+
+    def build_sheet(self) -> bool:
+        senhas: dict = self.get_save_password_map()
+
+        sheet_pass: dict = {
+            "Descrição": [_ for _ in self.get_colunm_value(senhas, "description")],
+            "Senha": [_ for _ in self.get_colunm_value(senhas, "password")],
+            "Cliente ID": [_ for _ in self.get_colunm_value(senhas, "client")],
+            "Cliente Nome": [_ for _ in self.get_colunm_value(senhas, "client_name")],
+            "Observação": [_ for _ in self.get_colunm_value(senhas, "obs")],
+            "Data de Criação": [_ for _ in self.get_colunm_value(senhas, "create_date")],
+            "Usuário": [_ for _ in self.get_colunm_value(senhas, "user")]
+        }
+
+        if not Sheet.create_excel("Senhas", sheet_pass, "Senhas"):
+            return False
+
+        return True
+
+    def list_to_hash_by_field(self, data: list[dict], field: str) -> dict:
+        if not isinstance(data, list) or not isinstance(field, str):
+            return {}
+
+        result: dict = {}
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+
+            if not item.get(field):
+                continue
+
+            if result.get(item[field]):
+                continue
+
+            result[item[field]] = item
+
+        return result
+
+    def save_file(self, path_file: str, content: str | bytes | None = None) -> bool:
+        try:
+            with open(path_file, "wb") as file:
+                if isinstance(content, bytes):
+                    file.write(content)
+
+                elif isinstance(content, str):
+                    file.write(content.encode())
+
+                file.close()
+
+        except Exception as e:
+            print(f"-- erro: {str(e)}")
+            return False
+
+        return True
+
+    def load_file(self, path_file: str) -> str | None:
+        if not os.path.isfile(path_file):
+            return None
+
+        file_content: str = ""
+        try:
+            with open(path_file, "rb") as file:
+                file_content = file.read().decode()
+                file.close()
+
+        except Exception as e:
+            print(f"-- erro: {str(e)}")
+            return None
+
+        if not file_content:
+            return None
+
+        return file_content
 
     def run(self) -> bool:
         if not self.save_client_at_file():
